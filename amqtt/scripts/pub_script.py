@@ -7,7 +7,7 @@ amqtt_pub - MQTT 3.1.1 publisher
 Usage:
     amqtt_pub --version
     amqtt_pub (-h | --help)
-    amqtt_pub --url BROKER_URL -t TOPIC (-f FILE | -l | -m MESSAGE | -n | -s) [-c CONFIG_FILE] [-i CLIENT_ID] [-q | --qos QOS] [-d] [-k KEEP_ALIVE] [--clean-session] [--ca-file CAFILE] [--ca-path CAPATH] [--ca-data CADATA] [ --will-topic WILL_TOPIC [--will-message WILL_MESSAGE] [--will-qos WILL_QOS] [--will-retain] ] [--extra-headers HEADER] [-r]
+    amqtt_pub --url BROKER_URL -t TOPIC (-f FILE | -l | -m MESSAGE | -n | -s | --whole-file FILE) [-c CONFIG_FILE] [-i CLIENT_ID] [-q | --qos QOS] [-d] [-k KEEP_ALIVE] [--clean-session] [--ca-file CAFILE] [--ca-path CAPATH] [--ca-data CADATA] [ --will-topic WILL_TOPIC [--will-message WILL_MESSAGE] [--will-qos WILL_QOS] [--will-retain] ] [--extra-headers HEADER] [-r]
 
 Options:
     -h --help           Show this screen.
@@ -32,6 +32,7 @@ Options:
     --will-retain
     --extra-headers EXTRA_HEADERS      JSON object with key-value pairs of additional headers for websocket connections
     -d                  Enable debug messages
+    --whole-file FILE   Publish the file as a whole      
 """
 
 import sys
@@ -97,6 +98,12 @@ def _get_message(arguments):
         for line in sys.stdin:
             message.extend(line.encode(encoding="utf-8"))
         yield message
+    if arguments["--whole-file"]: 
+        try:
+            with open(arguments["--whole-file"]) as f:
+                yield f.read().encode(encoding="utf-8")
+        except:
+            logger.error("Failed to read the whole file '%s'" % arguments["--whole-file"])
 
 
 async def do_pub(client, arguments):
