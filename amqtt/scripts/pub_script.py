@@ -36,6 +36,8 @@ Options:
 """
 
 import sys
+from pathlib import Path  
+sys.path.append(str(Path(__file__).parent.parent.parent))  # so python recognizes this directory as a module (Ivan)
 import logging
 import asyncio
 import os
