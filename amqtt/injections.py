@@ -1,6 +1,7 @@
 import json
 import gpxpy
 import pandas as pd
+import numpy as np
 
 def gpx_file_to_dict(filename):
     with open(filename) as f:
@@ -16,6 +17,20 @@ def gpx_file_to_dict(filename):
             })
     df = pd.DataFrame.from_records(points)
     return df.to_dict()
+
+def gpx_file_to_numpy(filename):
+    with open(filename) as f:
+        gpx = gpxpy.parse(f)
+    points = []
+    times = []
+    for track in gpx.tracks: 
+        for segment in track.segments:
+            for point in segment.points:
+                points.append(np.array([point.longitude, point.latitude, point.elevation, point.time]))
+                times.append(point.time)
+    points = np.array(points)
+    times = np.array(times)
+    return points
 
 def gpx_str_to_dict(f):
     gpx = gpxpy.parse(f)
