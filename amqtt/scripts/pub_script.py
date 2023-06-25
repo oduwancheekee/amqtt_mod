@@ -48,6 +48,29 @@ from amqtt.client import MQTTClient, ConnectException
 from docopt import docopt
 from amqtt.utils import read_yaml_config
 
+                                                                                    ### importing parser functions (Lisa)
+import pandas as pd
+import gpxpy
+import gpxpy.gpx
+
+file = '..\Hike-2022-06-30.gpx'                                                     ### relative file path (Lisa)
+
+def gpxfile_to_dict(filename):
+    with open(filename) as f:
+        gpx = gpxpy.parse(f)
+        points = []
+    for segment in gpx.tracks[0].segments:
+        for p in segment.points:
+            points.append({
+                'time': p.time,
+                'latitude': p.latitude,
+                'longitude': p.longitude,
+                'elevation': p.elevation,
+            })
+    df = pd.DataFrame.from_records(points)
+    print()
+    return df.to_dict()
+### Parser Stuff End
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +102,20 @@ def _get_message(arguments):
     if arguments["-n"]:
         yield b""
     if arguments["-m"]:
+        test = gpxfile_to_dict(file)
+        i = len(test)
+        time = test["time"]
+        lat = test["latitude"]
+        long = test["longitude"]
+        elev = test ["elevation"]
+        test_2 = str(test)
+        j = 0
+        # while j < 3 :
+        #     time_str = str(time[j])
+        #     lat_str = str(lat[j])
+        #     yield (time_str + " " + lat_str).encode(encoding="utf-8")
+        #     j =+ 1
+        print("in get_message_")
         yield arguments["-m"].encode(encoding="utf-8")
     if arguments["-f"]:
         try:
@@ -110,39 +147,64 @@ def _get_message(arguments):
 
 async def do_pub(client, arguments):
     running_tasks = []
+    ## loop for 
+    i = 0
+    gps_file = gpxfile_to_dict(file)
+    p = len(gps_file)
+    time = gps_file["time"]
+    lat = gps_file["latitude"]
+    long = gps_file["longitude"]
+    elev = gps_file["elevation"]
+    while i < 3:                                                                ##### use p for entire file transmission (Lisa), looping publishing
+        i += 1
+        try:
+            logger.info("%s Connecting to broker" % client.client_id)
 
-    try:
-        logger.info("%s Connecting to broker" % client.client_id)
-
-        await client.connect(
-            uri=arguments["--url"],
-            cleansession=arguments["--clean-session"],
-            cafile=arguments["--ca-file"],
-            capath=arguments["--ca-path"],
-            cadata=arguments["--ca-data"],
-            extra_headers=_get_extra_headers(arguments),
-        )
-        qos = _get_qos(arguments)
-        topic = arguments["-t"]
-        retain = arguments["-r"]
-        for message in _get_message(arguments):
-            logger.info("%s Publishing to '%s'" % (client.client_id, topic))
-            task = asyncio.ensure_future(client.publish(topic, message, qos, retain))
-            running_tasks.append(task)
-        if running_tasks:
-            await asyncio.wait(running_tasks)
-        await client.disconnect()
-        logger.info("%s Disconnected from broker" % client.client_id)
-    except KeyboardInterrupt:
-        await client.disconnect()
-        logger.info("%s Disconnected from broker" % client.client_id)
-    except ConnectException as ce:
-        logger.fatal("connection to '%s' failed: %r" % (arguments["--url"], ce))
-    except asyncio.CancelledError:
-        logger.fatal("Publish canceled due to previous error")
+            await client.connect(
+                uri=arguments["--url"],
+                cleansession=arguments["--clean-session"],
+                cafile=arguments["--ca-file"],
+                capath=arguments["--ca-path"],
+                cadata=arguments["--ca-data"],
+                extra_headers=_get_extra_headers(arguments),
+            )
+            qos = _get_qos(arguments)
+            topic = arguments["-t"]
+            retain = arguments["-r"]
+            #####################
+            
+            str_time = str(time[i])                                             # converting into string
+            str_lat = str(lat[i])
+            str_long = str(long[i])
+            str_elev = str(elev[i])
+            
+            
+            arguments["-m"] = (str_time + " " + str_lat + " " + str_long + " " + str_elev) # fuse strings together into one, preparing for _get_message_ func
+            #####################
+            for message in _get_message(arguments):
+                logger.info("%s Publishing to '%s'" % (client.client_id, topic))
+                task = asyncio.ensure_future(client.publish(topic, message, qos, retain))
+                running_tasks.append(task)
+            if running_tasks:
+                await asyncio.wait(running_tasks)
+            await client.disconnect()
+            logger.info("%s Disconnected from broker" % client.client_id)
+        except KeyboardInterrupt:
+            await client.disconnect()
+            logger.info("%s Disconnected from broker" % client.client_id)
+        except ConnectException as ce:
+            logger.fatal("connection to '%s' failed: %r" % (arguments["--url"], ce))
+        except asyncio.CancelledError:
+            logger.fatal("Publish canceled due to previous error")
 
 
 def main(*args, **kwargs):
+    
+    ###
+    test = gpxfile_to_dict(file)
+
+    
+    ###
     if sys.version_info[:2] < (3, 7):
         logger.fatal("Error: Python 3.7+ is required")
         sys.exit(-1)
@@ -192,4 +254,5 @@ def main(*args, **kwargs):
 
 
 if __name__ == "__main__":
+    #print(test["time"])
     main()

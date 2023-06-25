@@ -65,6 +65,7 @@ class Server:
         self.instance = server_instance
         self.conn_count = 0
         self.listener_name = listener_name
+        self.storage = ["test"]           # storage (Lisa)
         if loop is not None:
             self._loop = loop
         else:
@@ -182,6 +183,7 @@ class Broker:
         self._subscriptions = dict()
         self._retained_messages = dict()
         self._broadcast_queue = asyncio.Queue(loop=self._loop)
+        self._save_messages = []                                                                     ##### store messages (Lisa)
 
         self._broadcast_task = None
 
@@ -892,7 +894,10 @@ class Broker:
                                 )
                                 handler = self._get_handler(target_session)
                                 print('---INJECTION-IN---') # error doesn't crash the broker
-                                broadcast['data'] = change_gpx_format_by_Lisa(broadcast['data']) # modification for fault injection (Ivan)
+                                #broadcast['data'] = change_gpx_format_by_Lisa(broadcast['data']) # modification for fault injection (Ivan)
+                                self._save_messages.append(broadcast['data'].decode('utf-8'))     # saving messages in list (Lisa)
+                                print("Saved messages:")
+                                print(self._save_messages)
                                 print('---INJECTION-OUT---') # prints are used for signalling
                                 task = asyncio.ensure_future(
                                     handler.mqtt_publish(
