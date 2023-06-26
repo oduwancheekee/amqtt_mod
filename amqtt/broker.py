@@ -26,7 +26,7 @@ from amqtt.adapters import (
 )
 from .plugins.manager import PluginManager, BaseContext
 
-from amqtt.injections import change_gpx_format_by_Lisa  # modification for fault injection/healing (Ivan)
+from amqtt.injections import change_gpx_format_by_neeraj  # modification for fault injection/healing (Ivan)
 
 _defaults = {
     "timeout-disconnect-delay": 2,
@@ -892,7 +892,7 @@ class Broker:
                                 )
                                 handler = self._get_handler(target_session)
                                 print('---INJECTION-IN---') # error doesn't crash the broker
-                                broadcast['data'] = change_gpx_format_by_Lisa(broadcast['data']) # modification for fault injection (Ivan)
+                                broadcast['data'] = change_gpx_format_by_neeraj(broadcast['data']) # modification for fault injection (Ivan)
                                 print('---INJECTION-OUT---') # prints are used for signalling
                                 task = asyncio.ensure_future(
                                     handler.mqtt_publish(
