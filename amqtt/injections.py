@@ -18,7 +18,8 @@ def gpx_file_to_dict(filename):
     df = pd.DataFrame.from_records(points)
     return df.to_dict()
 
-def gpx_file_to_numpy(filename):
+def gpx_file_to_numpy_GPSClean(filename):
+    # output format for GPSClean 
     with open(filename) as f:
         gpx = gpxpy.parse(f)
     points = []
@@ -30,7 +31,7 @@ def gpx_file_to_numpy(filename):
                 times.append(point.time)
     points = np.array(points)
     times = np.array(times)
-    return points
+    return points, times
 
 def gpx_str_to_dict(f):
     gpx = gpxpy.parse(f)
