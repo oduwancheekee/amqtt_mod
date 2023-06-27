@@ -109,33 +109,54 @@ def change_gpx_format_by_neeraj(data):
         # non gpx data is not modified
         return data
 
+
+def choose_random_boolean():
+    if random.random() < 0.1:
+        return True
+    else:
+        return False
+
+
 def inject_fault_broadcast(data_df):
     #print(data_dict)
     # data is bytecode of dictionary
     #data_dict = json.loads(data.decode('utf-8'))
-    print('FROM FUNCTION', type(data_df))
-    for index, row in data_df.iterrows():
-        x = row['latitude']
-        y = row['longitude']
-        #x, y = data_dict['latitude'], data_dict['longitude']
-        print("Before :", data_df.iloc[index])
-        x = inject_random_number(x)
-        y = inject_random_number(y)
-        
-        data_df.at[index, 'latitude'], data_df.at[index, 'longitude'] = x, y
-        print("After :", data_df.iloc[index])
-        if(index == 5):
-            break
-        #print("data_dict :",data_df)
-        #data = json.dumps(data_dict).encode('utf-8')
-        #print('FROM FUNCTION', data)
+    #print('FROM FUNCTION', type(data_df))
+    #print("Df Size :",data_df.shape)
+    count=0
+    row,col = data_df.shape
+    randomlist = random.sample(range(0, row), int(0.1*row))
+    count = 0
+    try:
+        for i in randomlist:
+            count += 1
+            x = data_df.iloc[i]['latitude']
+            y = data_df.iloc[i]['longitude']
+            x = inject_random_number(x)
+            y = inject_random_number(y)
+            
+            data_df.at[i, 'latitude'], data_df.at[i, 'longitude'] = x, y
+            #print("After :", data_df.at[i, 'latitude'],"Index:", i)
+            #print("data_dict :",data_df)
+            #data = json.dumps(data_dict).encode('utf-8')
+            #print('FROM FUNCTION', data)
+    except Exception as e:
+        print("Exception:", e)
     return data_df
+
 
 def inject_random_number(number):
     random_digit = random.randint(0, 9)
+    flag = 0
+    if(number<0):
+        number = -1*number
+        flag = 1
     number_str = str(number)
 
-    random_position = random.randint(0, len((number_str).replace('-',''))-1)
+    if '.' in number_str:
+        random_position = random.randint(0, len((number_str).replace('-',''))-1)
+    else:
+        random_position = random.randint(0, len((number_str).replace('-','')))
     new_number_str = number_str[:random_position] + str(random_digit) + number_str[random_position:]
 
     if '.' in number_str:
@@ -143,6 +164,8 @@ def inject_random_number(number):
     else:
         new_number = int(new_number_str)
 
+    if(flag == 1):
+        new_number = -1*new_number
     return new_number
 
 
