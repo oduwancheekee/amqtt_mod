@@ -102,20 +102,6 @@ def _get_message(arguments):
     if arguments["-n"]:
         yield b""
     if arguments["-m"]:
-        test = gpxfile_to_dict(file)
-        i = len(test)
-        time = test["time"]
-        lat = test["latitude"]
-        long = test["longitude"]
-        elev = test ["elevation"]
-        test_2 = str(test)
-        j = 0
-        # while j < 3 :
-        #     time_str = str(time[j])
-        #     lat_str = str(lat[j])
-        #     yield (time_str + " " + lat_str).encode(encoding="utf-8")
-        #     j =+ 1
-        print("in get_message_")
         yield arguments["-m"].encode(encoding="utf-8")
     if arguments["-f"]:
         try:
@@ -201,7 +187,6 @@ async def do_pub(client, arguments):
 def main(*args, **kwargs):
     
     ###
-    test = gpxfile_to_dict(file)
 
     
     ###
