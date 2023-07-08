@@ -7,7 +7,7 @@ amqtt_pub - MQTT 3.1.1 publisher
 Usage:
     amqtt_pub --version
     amqtt_pub (-h | --help)
-    amqtt_pub --url BROKER_URL -t TOPIC (-f FILE | -l | -m MESSAGE | -n | -s | --whole-file FILE) [-c CONFIG_FILE] [-i CLIENT_ID] [-q | --qos QOS] [-d] [-k KEEP_ALIVE] [--clean-session] [--ca-file CAFILE] [--ca-path CAPATH] [--ca-data CADATA] [ --will-topic WILL_TOPIC [--will-message WILL_MESSAGE] [--will-qos WILL_QOS] [--will-retain] ] [--extra-headers HEADER] [-r]
+    amqtt_pub [--url BROKER_URL] [-t TOPIC] [(-f FILE | -l | -m MESSAGE | -n | -s | --whole-file FILE | --parse-gpx FILE)] [-c CONFIG_FILE] [-i CLIENT_ID] [-q | --qos QOS] [-d] [-k KEEP_ALIVE] [--clean-session] [--ca-file CAFILE] [--ca-path CAPATH] [--ca-data CADATA] [ --will-topic WILL_TOPIC [--will-message WILL_MESSAGE] [--will-qos WILL_QOS] [--will-retain] ] [--extra-headers HEADER] [-r]
 
 Options:
     -h --help           Show this screen.
@@ -33,6 +33,7 @@ Options:
     --extra-headers EXTRA_HEADERS      JSON object with key-value pairs of additional headers for websocket connections
     -d                  Enable debug messages
     --whole-file FILE   Publish the file as a whole      
+    --parse-gpx FILE    Publish GPX file, one node as a message
 """
 
 import sys
@@ -47,30 +48,7 @@ import amqtt
 from amqtt.client import MQTTClient, ConnectException
 from docopt import docopt
 from amqtt.utils import read_yaml_config
-
-                                                                                    ### importing parser functions (Lisa)
-import pandas as pd
-import gpxpy
-import gpxpy.gpx
-
-file = '..\Hike-2022-06-30.gpx'                                                     ### relative file path (Lisa)
-
-def gpxfile_to_dict(filename):
-    with open(filename) as f:
-        gpx = gpxpy.parse(f)
-        points = []
-    for segment in gpx.tracks[0].segments:
-        for p in segment.points:
-            points.append({
-                'time': p.time,
-                'latitude': p.latitude,
-                'longitude': p.longitude,
-                'elevation': p.elevation,
-            })
-    df = pd.DataFrame.from_records(points)
-    print()
-    return df.to_dict()
-### Parser Stuff End
+from amqtt.injections import gpx_file_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -129,67 +107,74 @@ def _get_message(arguments):
                 yield f.read().encode(encoding="utf-8")
         except:
             logger.error("Failed to read the whole file '%s'" % arguments["--whole-file"])
+    if arguments["--parse-gpx"]: 
+        try:
+            gps_file = gpx_file_to_dict(arguments["--parse-gpx"])
+            p = len(gps_file)
+            time = gps_file["time"]
+            lat = gps_file["latitude"]
+            long = gps_file["longitude"]
+            elev = gps_file["elevation"]
+            
+            i = 0
+            while i<3:
+                # converting into string
+                str_time = str(time[i])        
+                str_lat = str(lat[i])
+                str_long = str(long[i])
+                str_elev = str(elev[i])
+                i+=1
+                # fuse strings together into one, preparing for _get_message_ func
+                full_str = (str_time + " " + str_lat + " " + str_long + " " + str_elev) 
+                yield full_str.encode(encoding='utf-8')
+
+        except:
+            logger.error("Failed to read or parse the file '%s'" % arguments["--parse-gpx"])
 
 
 async def do_pub(client, arguments):
     running_tasks = []
-    ## loop for 
-    i = 0
-    gps_file = gpxfile_to_dict(file)
-    p = len(gps_file)
-    time = gps_file["time"]
-    lat = gps_file["latitude"]
-    long = gps_file["longitude"]
-    elev = gps_file["elevation"]
-    while i < 3:                                                                ##### use p for entire file transmission (Lisa), looping publishing
-        i += 1
-        try:
-            logger.info("%s Connecting to broker" % client.client_id)
 
-            await client.connect(
-                uri=arguments["--url"],
-                cleansession=arguments["--clean-session"],
-                cafile=arguments["--ca-file"],
-                capath=arguments["--ca-path"],
-                cadata=arguments["--ca-data"],
-                extra_headers=_get_extra_headers(arguments),
-            )
-            qos = _get_qos(arguments)
+    try:
+        logger.info("%s Connecting to broker" % client.client_id)
+        if arguments['--url']:
+            uri=arguments["--url"]
+        else:
+            uri='mqtt://localhost:1883'
+
+        await client.connect(
+            uri=uri,
+            cleansession=arguments["--clean-session"],
+            cafile=arguments["--ca-file"],
+            capath=arguments["--ca-path"],
+            cadata=arguments["--ca-data"],
+            extra_headers=_get_extra_headers(arguments),
+        )
+        qos = _get_qos(arguments)
+        if arguments['-t']:
             topic = arguments["-t"]
-            retain = arguments["-r"]
-            #####################
-            
-            str_time = str(time[i])                                             # converting into string
-            str_lat = str(lat[i])
-            str_long = str(long[i])
-            str_elev = str(elev[i])
-            
-            
-            arguments["-m"] = (str_time + " " + str_lat + " " + str_long + " " + str_elev) # fuse strings together into one, preparing for _get_message_ func
-            #####################
-            for message in _get_message(arguments):
-                logger.info("%s Publishing to '%s'" % (client.client_id, topic))
-                task = asyncio.ensure_future(client.publish(topic, message, qos, retain))
-                running_tasks.append(task)
-            if running_tasks:
-                await asyncio.wait(running_tasks)
-            await client.disconnect()
-            logger.info("%s Disconnected from broker" % client.client_id)
-        except KeyboardInterrupt:
-            await client.disconnect()
-            logger.info("%s Disconnected from broker" % client.client_id)
-        except ConnectException as ce:
-            logger.fatal("connection to '%s' failed: %r" % (arguments["--url"], ce))
-        except asyncio.CancelledError:
-            logger.fatal("Publish canceled due to previous error")
+        else:
+            topic = 'the_topic/unit1'
+        retain = arguments["-r"]
+
+        for message in _get_message(arguments):
+            logger.info("%s Publishing to '%s'" % (client.client_id, topic))
+            task = asyncio.ensure_future(client.publish(topic, message, qos, retain))
+            running_tasks.append(task)
+        if running_tasks:
+            await asyncio.wait(running_tasks)
+        await client.disconnect()
+        logger.info("%s Disconnected from broker" % client.client_id)
+    except KeyboardInterrupt:
+        await client.disconnect()
+        logger.info("%s Disconnected from broker" % client.client_id)
+    except ConnectException as ce:
+        logger.fatal("connection to '%s' failed: %r" % (arguments["--url"], ce))
+    except asyncio.CancelledError:
+        logger.fatal("Publish canceled due to previous error")
 
 
 def main(*args, **kwargs):
-    
-    ###
-
-    
-    ###
     if sys.version_info[:2] < (3, 7):
         logger.fatal("Error: Python 3.7+ is required")
         sys.exit(-1)
@@ -239,5 +224,4 @@ def main(*args, **kwargs):
 
 
 if __name__ == "__main__":
-    #print(test["time"])
     main()
