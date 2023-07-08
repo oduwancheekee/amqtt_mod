@@ -44,7 +44,9 @@ default_config = {
         ),
         "plugins": ["auth_file", "auth_anonymous"],
     },
-    "topic-check": {"enabled": False},
+    "topic-check": {
+        "enabled": False,
+        },
 }
 
 logger = logging.getLogger(__name__)
