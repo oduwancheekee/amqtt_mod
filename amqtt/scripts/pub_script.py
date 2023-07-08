@@ -7,7 +7,7 @@ amqtt_pub - MQTT 3.1.1 publisher
 Usage:
     amqtt_pub --version
     amqtt_pub (-h | --help)
-    amqtt_pub --url BROKER_URL -t TOPIC (-f FILE | -l | -m MESSAGE | -n | -s | --whole-file FILE) [-c CONFIG_FILE] [-i CLIENT_ID] [-q | --qos QOS] [-d] [-k KEEP_ALIVE] [--clean-session] [--ca-file CAFILE] [--ca-path CAPATH] [--ca-data CADATA] [ --will-topic WILL_TOPIC [--will-message WILL_MESSAGE] [--will-qos WILL_QOS] [--will-retain] ] [--extra-headers HEADER] [-r]
+    amqtt_pub [--url BROKER_URL] [-t TOPIC] [(-f FILE | -l | -m MESSAGE | -n | -s | --whole-file FILE | --parse-gpx FILE)] [-c CONFIG_FILE] [-i CLIENT_ID] [-q | --qos QOS] [-d] [-k KEEP_ALIVE] [--clean-session] [--ca-file CAFILE] [--ca-path CAPATH] [--ca-data CADATA] [ --will-topic WILL_TOPIC [--will-message WILL_MESSAGE] [--will-qos WILL_QOS] [--will-retain] ] [--extra-headers HEADER] [-r]
 
 Options:
     -h --help           Show this screen.
@@ -33,6 +33,7 @@ Options:
     --extra-headers EXTRA_HEADERS      JSON object with key-value pairs of additional headers for websocket connections
     -d                  Enable debug messages
     --whole-file FILE   Publish the file as a whole      
+    --parse-gpx FILE    Publish GPX file, one node as a message
 """
 
 import sys
@@ -47,7 +48,7 @@ import amqtt
 from amqtt.client import MQTTClient, ConnectException
 from docopt import docopt
 from amqtt.utils import read_yaml_config
-
+from amqtt.injections import gpx_file_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,29 @@ def _get_message(arguments):
                 yield f.read().encode(encoding="utf-8")
         except:
             logger.error("Failed to read the whole file '%s'" % arguments["--whole-file"])
+    if arguments["--parse-gpx"]: 
+        try:
+            gps_file = gpx_file_to_dict(arguments["--parse-gpx"])
+            p = len(gps_file)
+            time = gps_file["time"]
+            lat = gps_file["latitude"]
+            long = gps_file["longitude"]
+            elev = gps_file["elevation"]
+            
+            i = 0
+            while i<3:
+                # converting into string
+                str_time = str(time[i])        
+                str_lat = str(lat[i])
+                str_long = str(long[i])
+                str_elev = str(elev[i])
+                i+=1
+                # fuse strings together into one, preparing for _get_message_ func
+                full_str = (str_time + " " + str_lat + " " + str_long + " " + str_elev) 
+                yield full_str.encode(encoding='utf-8')
+
+        except:
+            logger.error("Failed to read or parse the file '%s'" % arguments["--parse-gpx"])
 
 
 async def do_pub(client, arguments):
@@ -113,9 +137,13 @@ async def do_pub(client, arguments):
 
     try:
         logger.info("%s Connecting to broker" % client.client_id)
+        if arguments['--url']:
+            uri=arguments["--url"]
+        else:
+            uri='mqtt://localhost:1883'
 
         await client.connect(
-            uri=arguments["--url"],
+            uri=uri,
             cleansession=arguments["--clean-session"],
             cafile=arguments["--ca-file"],
             capath=arguments["--ca-path"],
@@ -123,8 +151,12 @@ async def do_pub(client, arguments):
             extra_headers=_get_extra_headers(arguments),
         )
         qos = _get_qos(arguments)
-        topic = arguments["-t"]
+        if arguments['-t']:
+            topic = arguments["-t"]
+        else:
+            topic = 'the_topic/unit1'
         retain = arguments["-r"]
+
         for message in _get_message(arguments):
             logger.info("%s Publishing to '%s'" % (client.client_id, topic))
             task = asyncio.ensure_future(client.publish(topic, message, qos, retain))

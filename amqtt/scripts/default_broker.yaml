@@ -10,3 +10,6 @@ plugins:
   - auth_anonymous
 topic-check:
   enabled: False
+  acl:
+    anonymous: ["the_topic/#", "..."]
+    user_name: ["another_topic/#", "..."]
