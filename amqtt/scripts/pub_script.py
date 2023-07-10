@@ -110,20 +110,16 @@ def _get_message(arguments):
     if arguments["--parse-gpx"]: 
         try:
             gps_file = gpx_file_to_dict(arguments["--parse-gpx"])
-            p = len(gps_file)
             time = gps_file["time"]
             lat = gps_file["latitude"]
             long = gps_file["longitude"]
             elev = gps_file["elevation"]
-            
-            i = 0
-            while i<3:
+            for i in range(0, len(lat), 5):
                 # converting into string
                 str_time = str(time[i])        
                 str_lat = str(lat[i])
                 str_long = str(long[i])
                 str_elev = str(elev[i])
-                i+=1
                 # fuse strings together into one, preparing for _get_message_ func
                 full_str = (str_time + " " + str_lat + " " + str_long + " " + str_elev) 
                 yield full_str.encode(encoding='utf-8')
