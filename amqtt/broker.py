@@ -866,6 +866,8 @@ class Broker:
                     except Exception:
                         pass
                 broadcast = await self._broadcast_queue.get()
+                broadcast['data'] = amqtt.injections.redundancy_injection(broadcast['data'].decode('utf-8')).encode('utf-8')
+                
                 if self.logger.isEnabledFor(logging.DEBUG):
                     self.logger.debug("broadcasting %r" % broadcast)
                 for k_filter in self._subscriptions:
@@ -892,14 +894,16 @@ class Broker:
                                     )
                                 )
                                 handler = self._get_handler(target_session)
-                                print('---INJECTION-IN---') # error doesn't crash the broker
+                                # print('---INJECTION-IN---') # error doesn't crash the broker
                                 #broadcast['data'] = (gpx_file_to_dict(file)) # modification for fault injection (Ivan)
                                 
-                                self._save_messages.append(broadcast['data'].decode('utf-8'))     # saving messages in list (Lisa)
-                                print("Saved messages:")
-                                print(self._save_messages)
-                                broadcast['data'] = ('|'.join(self._save_messages)).encode('utf-8')
-                                print('---INJECTION-OUT---') # prints are used for signalling
+                                # self._save_messages.append(broadcast['data'].decode('utf-8'))     # saving messages in list (Lisa)
+                                # print("Saved messages:")
+                                # print(self._save_messages)
+                                # broadcast['data'] = ('|'.join(self._save_messages)).encode('utf-8')
+                                
+                                
+                                # print('---INJECTION-OUT---') # prints are used for signalling
                                 task = asyncio.ensure_future(
                                     handler.mqtt_publish(
                                         broadcast["topic"],

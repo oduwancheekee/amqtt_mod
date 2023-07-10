@@ -7,7 +7,7 @@ amqtt_sub - MQTT 3.1.1 publisher
 Usage:
     amqtt_sub --version
     amqtt_sub (-h | --help)
-    amqtt_sub --url BROKER_URL -t TOPIC... [-n COUNT] [-c CONFIG_FILE] [-i CLIENT_ID] [-q | --qos QOS] [-d] [-k KEEP_ALIVE] [--clean-session] [--ca-file CAFILE] [--ca-path CAPATH] [--ca-data CADATA] [ --will-topic WILL_TOPIC [--will-message WILL_MESSAGE] [--will-qos WILL_QOS] [--will-retain] ] [--extra-headers HEADER]
+    amqtt_sub [--url BROKER_URL] [-t TOPIC...] [-n COUNT] [-c CONFIG_FILE] [-i CLIENT_ID] [-q | --qos QOS] [-d] [-k KEEP_ALIVE] [--clean-session] [--ca-file CAFILE] [--ca-path CAPATH] [--ca-data CADATA] [ --will-topic WILL_TOPIC [--will-message WILL_MESSAGE] [--will-qos WILL_QOS] [--will-retain] ] [--extra-headers HEADER]
 
 Options:
     -h --help           Show this screen.
@@ -75,8 +75,13 @@ def _get_extra_headers(arguments):
 async def do_sub(client, arguments):
 
     try:
+        if arguments['--url']:
+            uri=arguments["--url"]
+        else:
+            uri='mqtt://localhost:1883'
+
         await client.connect(
-            uri=arguments["--url"],
+            uri=uri,
             cleansession=arguments["--clean-session"],
             cafile=arguments["--ca-file"],
             capath=arguments["--ca-path"],
@@ -85,8 +90,14 @@ async def do_sub(client, arguments):
         )
         qos = _get_qos(arguments)
         filters = []
-        for topic in arguments["-t"]:
+
+        if arguments['-t']:
+            for topic in arguments["-t"]:
+                filters.append((topic, qos))
+        else:
+            topic = 'the_topic/unit1'
             filters.append((topic, qos))
+
         await client.subscribe(filters)
         if arguments["-n"]:
             max_count = int(arguments["-n"])
