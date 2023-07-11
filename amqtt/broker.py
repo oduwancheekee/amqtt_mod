@@ -866,6 +866,8 @@ class Broker:
                     except Exception:
                         pass
                 broadcast = await self._broadcast_queue.get()
+                
+                # Fault injection (Ivan)
                 broadcast['data'] = amqtt.injections.redundancy_injection(broadcast['data'].decode('utf-8')).encode('utf-8')
                 
                 if self.logger.isEnabledFor(logging.DEBUG):
@@ -901,7 +903,6 @@ class Broker:
                                 # print("Saved messages:")
                                 # print(self._save_messages)
                                 # broadcast['data'] = ('|'.join(self._save_messages)).encode('utf-8')
-                                
                                 
                                 # print('---INJECTION-OUT---') # prints are used for signalling
                                 task = asyncio.ensure_future(

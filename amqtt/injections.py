@@ -5,7 +5,7 @@ import numpy as np
 
 def redundancy_injection(message):
     # message = '2022-06-30 18:03:22+00:00 49 -140 101'
-    # output = '2022-06-30 18:03:22+00:00 49 CORR(49) -140 CORR(-140) -140 101'
+    # output = '2022-06-30 18:03:22+00:00 49 INJ(49) -140 INJ(-140) -140 101'
     parts = message.split()
     lon = float(parts[2])
     lat = float(parts[3])
